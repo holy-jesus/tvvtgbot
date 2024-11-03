@@ -6,16 +6,17 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
-from dotenv import load_dotenv
 from TakVamVidno import TVV
 from TakVamVidno.extractors import OpenAIOCR, prepare_images
 from TakVamVidno.providers import OpenAIProvider
+from dotenv import load_dotenv
 
 
 load_dotenv()
 
+bot = Bot(token=os.getenv("telegram_token"), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
-# tvv = TVV(OpenAIProvider(), OpenAIOCR())
+tvv = TVV(OpenAIProvider(), OpenAIOCR())
 
 
 @dp.message(CommandStart())
@@ -25,12 +26,15 @@ async def command_start_handler(message: Message):
 
 @dp.message()
 async def catch_all(message: Message):
-    print(message.photo)
+    if not message.document:
+        return
+    file = (await bot.download(message.document)).read()
+    text = tvv.process(message.from_user.id, "", [file])
+    bot.send_message(message.from_user.id, text)
 
 
 async def main() -> None:
     # Initialize Bot instance with default bot properties which will be passed to all API calls
-    bot = Bot(token=os.getenv("telegram_token"), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     # And the run events dispatching
     await dp.start_polling(bot)
